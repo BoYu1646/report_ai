@@ -29,7 +29,6 @@ function fillForm(config) {
   $("feishuUserToken").value = config.sources.feishu.user_access_token || "";
   $("feishuChatIds").value = (config.sources.feishu.messages.chat_ids || []).join(", ");
   $("feishuCalendarIds").value = (config.sources.feishu.calendar.calendar_ids || []).join(", ");
-  $("feishuKeywords").value = (config.sources.feishu.messages.keywords || []).join(", ");
   $("template").value = config.report.template || "";
   $("outputDir").value = config.report.output_dir || "./reports";
 }
@@ -51,10 +50,6 @@ function readForm() {
     .map((item) => item.trim())
     .filter(Boolean);
   config.sources.feishu.calendar.calendar_ids = $("feishuCalendarIds")
-    .value.split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
-  config.sources.feishu.messages.keywords = $("feishuKeywords")
     .value.split(",")
     .map((item) => item.trim())
     .filter(Boolean);

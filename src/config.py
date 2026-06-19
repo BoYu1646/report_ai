@@ -46,10 +46,9 @@ class GitSourceConfig(BaseModel):
 class FeishuMessageConfig(BaseModel):
     enabled: bool = True
     chat_ids: list[str] = Field(default_factory=list)
-    keywords: list[str] = Field(default_factory=list)
     limit_per_chat: int = Field(default=50, ge=1, le=200)
 
-    @field_validator("chat_ids", "keywords", mode="before")
+    @field_validator("chat_ids", mode="before")
     @classmethod
     def coerce_none_to_list(cls, value: object) -> object:
         return [] if value is None else value

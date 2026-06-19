@@ -85,8 +85,6 @@ class FeishuSource:
             data = self._data(response.json(), "messages")
             for message in data.get("items", []):
                 title = self._message_title(message)
-                if self._filtered_by_keywords(title):
-                    continue
                 items.append(
                     WorkItem(
                         source="feishu",
@@ -141,10 +139,6 @@ class FeishuSource:
                     )
                 )
         return items
-
-    def _filtered_by_keywords(self, title: str) -> bool:
-        keywords = [keyword for keyword in self.config.messages.keywords if keyword]
-        return bool(keywords) and not any(keyword in title for keyword in keywords)
 
     @staticmethod
     def _data(payload: dict[str, Any], scope: str) -> dict[str, Any]:

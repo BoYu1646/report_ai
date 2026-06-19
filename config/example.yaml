@@ -4,7 +4,6 @@
 schedule:
   # 必选项要求每分钟定时触发；如需每 2 分钟执行，可改为 "*/2 * * * *"。
   # 如需每周五 17:00 执行，可改为 "0 17 * * 5"。
-  # 时区不在配置中维护，统一以服务运行环境的本地时间为准。
   cron: "* * * * *"
 
 sources:
@@ -25,10 +24,6 @@ sources:
   feishu:
     enabled: true
     api_base_url: "https://open.feishu.cn/open-apis"
-    # 三种凭证方式任选其一：
-    # 1. 配置 app_id + app_secret，系统自动换 tenant_access_token。
-    # 2. 直接配置 tenant_access_token。
-    # 3. 日历读取用户主日历时可配置 user_access_token。
     app_id: "${FEISHU_APP_ID}"
     app_secret: "${FEISHU_APP_SECRET}"
     tenant_access_token: "${FEISHU_TENANT_ACCESS_TOKEN}"
@@ -38,11 +33,6 @@ sources:
       enabled: true
       chat_ids:
         # - "oc_xxxxxxxxxxxx"
-      keywords:
-        - "周报"
-        - "本周"
-        - "风险"
-        - "进度"
       limit_per_chat: 50
     calendar:
       enabled: true

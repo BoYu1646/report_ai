@@ -99,7 +99,6 @@ export OPENAI_API_KEY="sk_xxx"
 | `sources.feishu.tenant_access_token` | 可直接传入租户访问令牌 |
 | `sources.feishu.user_access_token` | 读取用户主日历等个人资源时可配置用户访问令牌 |
 | `sources.feishu.messages.chat_ids` | 飞书群聊 ID 列表，例如 `oc_xxx` |
-| `sources.feishu.messages.keywords` | 消息关键词过滤，为空则不过滤 |
 | `sources.feishu.calendar.calendar_ids` | 飞书日历 ID 列表，默认 `primary` |
 | `report.template` | 自定义 Markdown 模板，支持 `{git_count}`、`{feishu_count}`、`{done}` 等占位符 |
 | `report.output_dir` | Markdown 输出目录 |

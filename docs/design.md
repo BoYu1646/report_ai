@@ -86,7 +86,6 @@ flowchart LR
 
 - 配置 `sources.feishu.messages.chat_ids` 指定群聊。
 - 使用当前自然周起止时间过滤消息。
-- 支持 `keywords` 对消息内容做轻量过滤。
 - 将消息转换为 `WorkItem(type="message")`。
 
 飞书日程：
@@ -146,7 +145,7 @@ flowchart LR
 能力：
 
 - 编辑 Git Token 与仓库 ID。
-- 编辑飞书 App ID、App Secret、Token、群聊 ID、日历 ID、关键词。
+- 编辑飞书 App ID、App Secret、Token、群聊 ID、日历 ID。
 - 展示自然周规则。
 - 编辑自定义周报模板。
 - 编辑输出路径。
