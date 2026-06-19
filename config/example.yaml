@@ -12,6 +12,7 @@ sources:
     enabled: true
     provider: github
     api_base_url: https://api.github.com
+    token: null
     repos:
       - "org/repo-a"
     # 默认缺少 Token 时使用演示数据；真实 Git 测试脚本会关闭该开关。
