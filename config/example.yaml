@@ -1,0 +1,87 @@
+# 自动生成工作周报助手示例配置
+# 本文件可直接用于本地开发，生产环境请使用环境变量或密钥系统注入敏感信息。
+
+schedule:
+  # 必选项要求每分钟定时触发；如需每 2 分钟执行，可改为 "*/2 * * * *"。
+  # 如需每周五 17:00 执行，可改为 "0 17 * * 5"。
+  # 时区不在配置中维护，统一以服务运行环境的本地时间为准。
+  cron: "* * * * *"
+
+sources:
+  git:
+    enabled: true
+    provider: github
+    api_base_url: "https://api.github.com"
+    # 支持 ${ENV_NAME} 形式从环境变量读取；未配置时会使用演示数据。
+    token: "${GIT_TOKEN}"
+    repos:
+      - "org/repo-a"
+    # 默认缺少 Token 时使用演示数据；真实 Git 测试脚本会关闭该开关。
+    use_demo_when_missing_token: true
+    # 是否读取系统代理等环境变量。企业网络需要代理时保持 true；直连测试可设为 false。
+    trust_env: true
+    include:
+      commits: true
+      pull_requests: true
+      issues: true
+
+  yuque:
+    # 语雀当前暂不参与测试，默认关闭；需要恢复时改为 true。
+    enabled: false
+    # 普通语雀使用默认地址；企业空间可改为 "https://your-company.yuque.com/api/v2"。
+    api_base_url: "https://www.yuque.com/api/v2"
+    # 支持 ${ENV_NAME} 形式从环境变量读取；真实测试必须提供有效 Token。
+    token: "${YUQUE_TOKEN}"
+    # 从知识库 URL 中提取，例如 https://www.yuque.com/team/project 对应 team/project。
+    namespace: "team/project"
+    user_agent: "report-ai-weekly-assistant"
+    include_docs: true
+
+llm:
+  provider: openai_compatible
+  model: "gpt-4o-mini"
+  # 未配置时使用本地兜底生成器；配置后通过 LangChain Python API 调用模型。
+  api_key: "${OPENAI_API_KEY}"
+  base_url: "https://api.openai.com/v1"
+  temperature: 0.2
+  timeout_seconds: 60
+
+report:
+  # 自定义 Markdown 模板。本地兜底生成支持以下占位符：
+  # {title} {generated_at} {week_start} {week_end} {git_count} {yuque_count}
+  # {done} {in_progress} {risks} {next_week} {sources}
+  # LLM 生成时会把该模板作为强约束输出格式。
+  template: |
+    # {title}
+
+    > 周期：{week_start} 至 {week_end}
+    > 数据概览：Git {git_count} 条，语雀 {yuque_count} 条。
+
+    ## 本周完成
+    {done}
+
+    ## 进行中
+    {in_progress}
+
+    ## 风险/阻塞
+    {risks}
+
+    ## 下周计划
+    {next_week}
+
+    ## 数据来源
+    {sources}
+  title: "研发工作周报"
+  sections:
+    - done
+    - in_progress
+    - risks
+    - next_week
+  output_dir: "./reports"
+  filename_prefix: "weekly-report"
+  language: "zh-CN"
+
+web:
+  host: "0.0.0.0"
+  port: 8000
+  enable_export: true

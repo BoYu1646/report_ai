@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>工作周报助手</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <h1>工作周报助手</h1>
+        <p>Git + 语雀数据自动汇总，LangChain 生成 Markdown 周报。</p>
+      </div>
+      <div class="actions">
+        <button id="saveConfig">保存配置</button>
+        <button id="generate">立即生成</button>
+        <a class="button secondary" href="/api/reports/export">导出 Markdown</a>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="panel config-panel">
+        <h2>配置</h2>
+        <label>Cron 表达式<input id="scheduleCron" /></label>
+        <p class="hint">调度按服务运行环境的本地时间执行；周报周期固定为当前自然周（周一 00:00 至下周一 00:00）。</p>
+        <label>Git Token<input id="gitToken" type="password" /></label>
+        <label>Git 仓库，逗号分隔<input id="gitRepos" /></label>
+        <label>语雀 Token<input id="yuqueToken" type="password" /></label>
+        <label>语雀知识库 Namespace<input id="yuqueNamespace" /></label>
+        <label>周报模板<textarea id="template" rows="16"></textarea></label>
+        <label>输出路径<input id="outputDir" /></label>
+        <p id="status" class="status">正在加载配置...</p>
+      </section>
+
+      <section class="panel report-panel">
+        <div class="report-head">
+          <h2>结果展示</h2>
+          <span id="meta">暂无生成记录</span>
+        </div>
+        <article id="report" class="markdown"></article>
+      </section>
+    </main>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
