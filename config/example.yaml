@@ -1,86 +1,87 @@
-# 自动生成工作周报助手示例配置
-# 本文件可直接用于本地开发，生产环境请使用环境变量或密钥系统注入敏感信息。
-
 schedule:
-  # 必选项要求每分钟定时触发；如需每 2 分钟执行，可改为 "*/2 * * * *"。
-  # 如需每周五 17:00 执行，可改为 "0 17 * * 5"。
-  cron: "* * * * *"
-
+  cron: '* * * * *'
 sources:
   git:
     enabled: true
     provider: github
-    api_base_url: "https://api.github.com"
-    token: "${GIT_TOKEN}"
+    api_base_url: https://api.github.com
+    token: ${GIT_TOKEN}
     repos:
-      - "BoYu1646/report_ai"
+    - BoYu1646/report_ai
     include:
       commits: true
       pull_requests: true
       issues: true
-    use_demo_when_missing_token: true
-    trust_env: true
-
+    use_demo_when_missing_token: false
+    trust_env: false
   feishu:
     enabled: true
-    api_base_url: "https://open.feishu.cn/open-apis"
-    app_id: "${FEISHU_APP_ID}"
-    app_secret: "${FEISHU_APP_SECRET}"
-    tenant_access_token: "${FEISHU_TENANT_ACCESS_TOKEN}"
-    user_access_token: "${FEISHU_USER_ACCESS_TOKEN}"
+    api_base_url: https://open.feishu.cn/open-apis
+    app_id: ${FEISHU_APP_ID}
+    app_secret: ${FEISHU_APP_SECRET}
+    tenant_access_token: ${FEISHU_TENANT_ACCESS_TOKEN}
+    user_access_token: ${FEISHU_USER_ACCESS_TOKEN}
     use_demo_when_missing_credentials: true
     messages:
       enabled: true
-      chat_ids:
-        # - "oc_xxxxxxxxxxxx"
+      chat_ids: []
       limit_per_chat: 50
     calendar:
       enabled: true
       calendar_ids:
-        - "primary"
+      - primary
       limit_per_calendar: 50
-
 llm:
   provider: openai_compatible
-  model: "gpt-4o-mini"
-  # 未配置时使用本地兜底生成器；配置后通过 LangChain Python API 调用模型。
-  api_key: "${OPENAI_API_KEY}"
-  base_url: "https://api.openai.com/v1"
+  model: gpt-4o-mini
+  api_key: ${OPENAI_API_KEY}
+  base_url: https://api.openai.com/v1
   temperature: 0.2
   timeout_seconds: 60
-
 report:
-  template: |
-    # {title}
+  template: '# {title}
+
 
     > 周期：{week_start} 至 {week_end}
+
     > 数据概览：Git {git_count} 条，飞书 {feishu_count} 条。
 
+
     ## 本周完成
+
     {done}
 
+
     ## 进行中
+
     {in_progress}
 
+
     ## 风险/阻塞
+
     {risks}
 
+
     ## 下周计划
+
     {next_week}
 
-    ## 数据来源
-    {sources}
-  title: "研发工作周报"
-  sections:
-    - done
-    - in_progress
-    - risks
-    - next_week
-  output_dir: "./reports"
-  filename_prefix: "weekly-report"
-  language: "zh-CN"
 
+    ## 数据来源
+
+    {sources}
+
+    '
+  title: 研发工作周报
+  sections:
+  - done
+  - in_progress
+  - risks
+  - next_week
+  output_dir: ./reports
+  filename_prefix: weekly-report
+  language: zh-CN
 web:
-  host: "0.0.0.0"
+  host: 0.0.0.0
   port: 8000
   enable_export: true
