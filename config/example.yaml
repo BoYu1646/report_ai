@@ -11,9 +11,7 @@ sources:
   git:
     enabled: true
     provider: github
-    api_base_url: "https://api.github.com"
-    # 支持 ${ENV_NAME} 形式从环境变量读取；未配置时会使用演示数据。
-    token: "${GIT_TOKEN}"
+    api_base_url: https://api.github.com
     repos:
       - "org/repo-a"
     # 默认缺少 Token 时使用演示数据；真实 Git 测试脚本会关闭该开关。
@@ -47,31 +45,38 @@ llm:
   timeout_seconds: 60
 
 report:
-  # 自定义 Markdown 模板。本地兜底生成支持以下占位符：
-  # {title} {generated_at} {week_start} {week_end} {git_count} {yuque_count}
-  # {done} {in_progress} {risks} {next_week} {sources}
-  # LLM 生成时会把该模板作为强约束输出格式。
-  template: |
-    # {title}
+  template: '# {title}
+
 
     > 周期：{week_start} 至 {week_end}
+
     > 数据概览：Git {git_count} 条，语雀 {yuque_count} 条。
 
+
     ## 本周完成
+
     {done}
 
+
     ## 进行中
+
     {in_progress}
 
+
     ## 风险/阻塞
+
     {risks}
 
+
     ## 下周计划
+
     {next_week}
 
+
     ## 数据来源
-    {sources}
-  title: "研发工作周报"
+
+    {sources}'
+  title: 研发工作周报
   sections:
     - done
     - in_progress
