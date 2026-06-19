@@ -8,7 +8,14 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from src.config import DEFAULT_CONFIG_PATH, AppConfig, load_config, save_config
+from src.config import (
+    DEFAULT_CONFIG_PATH,
+    AppConfig,
+    config_for_client,
+    load_config,
+    merge_runtime_secrets,
+    save_config,
+)
 from src.models import GenerateRequest, ReportResponse
 from src.scheduler import create_scheduler
 from src.services.report_service import ReportService
@@ -47,12 +54,13 @@ async def health() -> dict[str, str]:
 
 @app.get("/api/config")
 async def get_config() -> dict:
-    return state.config.model_dump(mode="json")
+    return config_for_client(state.config)
 
 
 @app.post("/api/config")
 async def update_config(payload: dict) -> dict[str, str]:
-    state.config = AppConfig.model_validate(payload)
+    incoming_config = AppConfig.model_validate(payload)
+    state.config = merge_runtime_secrets(incoming_config, state.config)
     save_config(state.config, DEFAULT_CONFIG_PATH)
     scheduler = getattr(app.state, "scheduler", None)
     if scheduler:

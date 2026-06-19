@@ -19,6 +19,8 @@
 
 ## 2. 配置环境变量
 
+推荐使用环境变量注入真实密钥，避免写入 `config/example.yaml`：
+
 ```bash
 export FEISHU_APP_ID="cli_xxx"
 export FEISHU_APP_SECRET="xxx"
@@ -36,7 +38,8 @@ export FEISHU_USER_ACCESS_TOKEN="u-xxx"
 ```bash
 python scripts/test_feishu_connection.py \
   --chat-ids "oc_xxx" \
-  --calendar-ids "primary"
+  --messages-only \
+  --no-demo
 ```
 
 成功时会输出：
@@ -52,7 +55,17 @@ python scripts/test_feishu_connection.py \
 python scripts/test_feishu_connection.py --chat-ids "oc_xxx" --no-demo
 ```
 
-## 4. 启动 Web 生成周报
+如果只验证飞书消息，建议加 `--messages-only`，避免日历权限未开通时影响消息测试。
+
+## 4. 使用 Web 页面临时测试
+
+页面支持临时输入飞书凭证，但不会把密钥保存到 YAML：
+
+- 飞书 `App ID / App Secret / Access Token` 只进入当前后端进程内存。
+- `config/example.yaml` 会继续保留 `${FEISHU_APP_ID}`、`${FEISHU_APP_SECRET}` 等占位符。
+- 重启后端后，页面临时输入的密钥会失效，需要重新输入或改用环境变量。
+
+## 5. 启动 Web 生成周报
 
 ```bash
 uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
@@ -67,13 +80,13 @@ http://localhost:8000
 页面操作：
 
 1. 填写飞书 App ID / App Secret，或直接填写 Token。
-2. 填写飞书群聊 ID。
-3. 填写飞书日历 ID。
-4. 点击“保存配置”。
+2. 勾选“启用飞书消息采集”，填写飞书群聊 ID。
+3. 如果本次只测消息，取消勾选“启用飞书日程采集”；如果要测日程，再填写飞书日历 ID。
+4. 点击“保存配置”。此时群聊 ID、日历 ID、采集开关等普通配置会写入 YAML，密钥不会写入 YAML。
 5. 点击“立即生成”。
 6. 查看结果展示页中的飞书消息和日程。
 
-## 5. 常见问题
+## 6. 常见问题
 
 ### 401 / 403
 

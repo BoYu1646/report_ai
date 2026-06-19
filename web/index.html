@@ -22,19 +22,74 @@
 
     <main class="layout">
       <section class="panel config-panel">
-        <h2>配置</h2>
-        <label>Cron 表达式<input id="scheduleCron" /></label>
-        <p class="hint">调度按服务运行环境的本地时间执行；周报周期固定为当前自然周（周一 00:00 至下周一 00:00）。</p>
-        <label>Git Token<input id="gitToken" type="password" /></label>
-        <label>Git 仓库，逗号分隔<input id="gitRepos" /></label>
-        <label>飞书 App ID<input id="feishuAppId" /></label>
-        <label>飞书 App Secret<input id="feishuAppSecret" type="password" /></label>
-        <label>飞书 Tenant Access Token<input id="feishuTenantToken" type="password" /></label>
-        <label>飞书 User Access Token<input id="feishuUserToken" type="password" /></label>
-        <label>飞书群聊 ID，逗号分隔<input id="feishuChatIds" /></label>
-        <label>飞书日历 ID，逗号分隔<input id="feishuCalendarIds" /></label>
-        <label>周报模板<textarea id="template" rows="16"></textarea></label>
-        <label>输出路径<input id="outputDir" /></label>
+        <div class="panel-head">
+          <div>
+            <h2>配置中心</h2>
+            <p>按数据源拆分配置，保存后定时任务会自动重载。</p>
+          </div>
+          <span class="safe-badge">密钥不落盘</span>
+        </div>
+
+        <section class="config-group">
+          <div class="group-head">
+            <div>
+              <h3>调度设置</h3>
+              <p>控制自动生成频率，周报周期固定为当前自然周。</p>
+            </div>
+          </div>
+          <label>Cron 表达式<input id="scheduleCron" /></label>
+          <p class="hint">按服务运行环境的本地时间执行；自然周为周一 00:00 至下周一 00:00。</p>
+        </section>
+
+        <section class="config-group source-group">
+          <div class="group-head">
+            <div>
+              <h3>Git 数据源</h3>
+              <p>采集 GitHub commit、PR 和 issue。</p>
+            </div>
+            <span class="source-tag">GitHub</span>
+          </div>
+          <label>Git Token<input id="gitToken" type="password" autocomplete="off" /></label>
+          <p class="hint">Token 输入后仅用于当前后端进程测试，不会写入 YAML。</p>
+          <label>Git 仓库，逗号分隔<input id="gitRepos" placeholder="BoYu1646/report_ai" /></label>
+        </section>
+
+        <section class="config-group source-group">
+          <div class="group-head">
+            <div>
+              <h3>飞书数据源</h3>
+              <p>采集飞书群消息和日程，可单独启停。</p>
+            </div>
+            <span class="source-tag">Feishu</span>
+          </div>
+          <label>飞书 App ID<input id="feishuAppId" autocomplete="off" /></label>
+          <label>飞书 App Secret<input id="feishuAppSecret" type="password" autocomplete="off" /></label>
+          <label>飞书 Tenant Access Token<input id="feishuTenantToken" type="password" autocomplete="off" /></label>
+          <label>飞书 User Access Token<input id="feishuUserToken" type="password" autocomplete="off" /></label>
+          <p class="hint">Secret / Token 仅用于当前后端进程测试，不会写入 YAML；生产环境建议使用环境变量或密钥系统。</p>
+
+          <div class="sub-source">
+            <label class="checkbox-row"><input id="feishuMessagesEnabled" type="checkbox" />启用飞书消息采集</label>
+            <label>飞书群聊 ID，逗号分隔<input id="feishuChatIds" placeholder="oc_xxx, oc_yyy" /></label>
+          </div>
+
+          <div class="sub-source">
+            <label class="checkbox-row"><input id="feishuCalendarEnabled" type="checkbox" />启用飞书日程采集</label>
+            <label>飞书日历 ID，逗号分隔<input id="feishuCalendarIds" placeholder="primary" /></label>
+          </div>
+        </section>
+
+        <section class="config-group">
+          <div class="group-head">
+            <div>
+              <h3>周报输出</h3>
+              <p>控制 Markdown 模板和生成文件目录。</p>
+            </div>
+          </div>
+          <label>周报模板<textarea id="template" rows="16"></textarea></label>
+          <label>输出路径<input id="outputDir" /></label>
+        </section>
+
         <p id="status" class="status">正在加载配置...</p>
       </section>
 

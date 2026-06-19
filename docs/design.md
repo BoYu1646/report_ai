@@ -78,18 +78,21 @@ flowchart LR
 
 - Agent 只消费标准 `WorkItem`，便于后续扩展 Jira、飞书任务、会议纪要等数据源。
 - 飞书凭证支持 `app_id/app_secret` 自动换取租户 token，也支持直接传 token。
+- Web 页面输入的飞书凭证仅作为运行时覆盖，不回显、不写入 YAML，重启后需重新输入或通过环境变量注入。
 - 凭证缺失时可按配置返回演示数据，保证项目可直接启动和验收。
 
 ### 3.3 飞书接入设计
 
 飞书消息：
 
+- 配置 `sources.feishu.messages.enabled` 独立启停消息采集。
 - 配置 `sources.feishu.messages.chat_ids` 指定群聊。
 - 使用当前自然周起止时间过滤消息。
 - 将消息转换为 `WorkItem(type="message")`。
 
 飞书日程：
 
+- 配置 `sources.feishu.calendar.enabled` 独立启停日程采集。
 - 配置 `sources.feishu.calendar.calendar_ids` 指定日历，默认 `primary`。
 - 使用当前自然周起止时间过滤日程。
 - 将日程转换为 `WorkItem(type="calendar_event")`。
@@ -182,7 +185,7 @@ flowchart LR
 ## 7. 安全与合规
 
 - 不在仓库中提交真实 Token、API Key、App Secret。
-- Web 页面展示配置时生产环境应对密钥字段脱敏。
+- Web 页面获取配置时不回显密钥；保存配置时保留 YAML 中的环境变量占位符，页面输入的密钥仅在当前后端进程生效。
 - LLM 输入可能包含内部研发信息，需按企业策略选择私有模型或允许的数据出境方案。
 - 日志禁止打印完整密钥和大段原始业务数据。
 - 导出接口应受权限控制，避免内部周报被非授权访问。

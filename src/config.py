@@ -21,6 +21,15 @@ DEFAULT_REPORT_TEMPLATE = (
     "## 数据来源\n{sources}\n"
 )
 
+SECRET_FIELD_PATHS: tuple[tuple[str, ...], ...] = (
+    ("sources", "git", "token"),
+    ("sources", "feishu", "app_id"),
+    ("sources", "feishu", "app_secret"),
+    ("sources", "feishu", "tenant_access_token"),
+    ("sources", "feishu", "user_access_token"),
+    ("llm", "api_key"),
+)
+
 
 class ScheduleConfig(BaseModel):
     cron: str = "* * * * *"
@@ -142,16 +151,68 @@ def is_placeholder_secret(value: str | None) -> bool:
     return not value or value.startswith("${") or value.endswith("}")
 
 
-def load_config(path: Path | str = DEFAULT_CONFIG_PATH) -> AppConfig:
+def _load_config_data(path: Path | str = DEFAULT_CONFIG_PATH) -> dict[str, Any]:
     config_path = Path(path)
-    data = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
-    return AppConfig.model_validate(_expand_env(data))
+    return yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+
+
+def _get_nested(data: dict[str, Any], path: tuple[str, ...]) -> Any:
+    current: Any = data
+    for key in path:
+        if not isinstance(current, dict) or key not in current:
+            return None
+        current = current[key]
+    return current
+
+
+def _set_nested(data: dict[str, Any], path: tuple[str, ...], value: Any) -> None:
+    current: dict[str, Any] = data
+    for key in path[:-1]:
+        next_value = current.get(key)
+        if not isinstance(next_value, dict):
+            next_value = {}
+            current[key] = next_value
+        current = next_value
+    current[path[-1]] = value
+
+
+def load_config(path: Path | str = DEFAULT_CONFIG_PATH, *, expand_env: bool = True) -> AppConfig:
+    data = _load_config_data(path)
+    return AppConfig.model_validate(_expand_env(data) if expand_env else data)
+
+
+def config_for_client(config: AppConfig) -> dict[str, Any]:
+    data = config.model_dump(mode="json")
+    for path in SECRET_FIELD_PATHS:
+        # 密钥字段不回显到浏览器，避免页面源码、日志或截屏泄露。
+        _set_nested(data, path, "")
+    return data
+
+
+def merge_runtime_secrets(incoming: AppConfig, current: AppConfig) -> AppConfig:
+    data = incoming.model_dump(mode="json")
+    current_data = current.model_dump(mode="json")
+    for path in SECRET_FIELD_PATHS:
+        incoming_value = _get_nested(data, path)
+        if is_placeholder_secret(incoming_value):
+            # 页面留空表示“沿用当前进程中的密钥”，不清空运行时凭证。
+            _set_nested(data, path, _get_nested(current_data, path))
+    return AppConfig.model_validate(data)
 
 
 def save_config(config: AppConfig, path: Path | str = DEFAULT_CONFIG_PATH) -> None:
     config_path = Path(path)
     config_path.parent.mkdir(parents=True, exist_ok=True)
+    data = config.model_dump(mode="json")
+    raw_data = _load_config_data(config_path) if config_path.exists() else {}
+    raw_config = AppConfig.model_validate(raw_data)
+    raw_config_data = raw_config.model_dump(mode="json")
+
+    for secret_path in SECRET_FIELD_PATHS:
+        # YAML 中始终保留原有占位符或原始值，页面输入的密钥只用于当前进程。
+        _set_nested(data, secret_path, _get_nested(raw_config_data, secret_path))
+
     config_path.write_text(
-        yaml.safe_dump(config.model_dump(mode="json"), allow_unicode=True, sort_keys=False),
+        yaml.safe_dump(data, allow_unicode=True, sort_keys=False),
         encoding="utf-8",
     )

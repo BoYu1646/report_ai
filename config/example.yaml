@@ -44,7 +44,9 @@ report:
 
     > 周期：{week_start} 至 {week_end}
 
-    > 数据概览：Git {git_count} 条，飞书 {feishu_count} 条。
+    > 数据概览：Git {git_count} 条，
+
+    飞书 {feishu_count} 条。
 
 
     ## 本周完成
@@ -69,9 +71,7 @@ report:
 
     ## 数据来源
 
-    {sources}
-
-    '
+    {sources}'
   title: 研发工作周报
   sections:
   - done

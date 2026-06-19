@@ -86,6 +86,12 @@ export FEISHU_APP_SECRET="xxx"
 export OPENAI_API_KEY="sk_xxx"
 ```
 
+安全策略：
+
+- `Git Token`、飞书 `App ID / App Secret / Access Token`、`OPENAI_API_KEY` 不会通过 Web 页面回显。
+- 在 Web 页面输入上述密钥并点击“保存配置”后，密钥只应用到当前后端进程，不会写入 `config/example.yaml`。
+- 重启服务后，临时输入的密钥会失效；真实环境建议通过环境变量、KMS 或 Secret Manager 注入。
+
 关键字段：
 
 | 字段 | 说明 |
@@ -98,7 +104,9 @@ export OPENAI_API_KEY="sk_xxx"
 | `sources.feishu.app_id/app_secret` | 飞书应用凭证，系统会自动换取 `tenant_access_token` |
 | `sources.feishu.tenant_access_token` | 可直接传入租户访问令牌 |
 | `sources.feishu.user_access_token` | 读取用户主日历等个人资源时可配置用户访问令牌 |
+| `sources.feishu.messages.enabled` | 是否启用飞书消息采集 |
 | `sources.feishu.messages.chat_ids` | 飞书群聊 ID 列表，例如 `oc_xxx` |
+| `sources.feishu.calendar.enabled` | 是否启用飞书日程采集 |
 | `sources.feishu.calendar.calendar_ids` | 飞书日历 ID 列表，默认 `primary` |
 | `report.template` | 自定义 Markdown 模板，支持 `{git_count}`、`{feishu_count}`、`{done}` 等占位符 |
 | `report.output_dir` | Markdown 输出目录 |
@@ -127,7 +135,9 @@ python scripts/test_git_connection.py --repo microsoft/vscode
 飞书：
 
 ```bash
-python scripts/test_feishu_connection.py --chat-ids "oc_xxx" --calendar-ids "primary"
+export FEISHU_APP_ID="cli_xxx"
+export FEISHU_APP_SECRET="xxx"
+python scripts/test_feishu_connection.py --chat-ids "oc_xxx" --messages-only --no-demo
 ```
 
 详细说明见：

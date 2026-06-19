@@ -24,16 +24,35 @@ async function requestJson(url, options = {}) {
 function fillForm(config) {
   currentConfig = config;
   $("scheduleCron").value = config.schedule.cron;
-  $("gitToken").value = config.sources.git.token || "";
+  $("gitToken").value = "";
   $("gitRepos").value = (config.sources.git.repos || []).join(", ");
-  $("feishuAppId").value = config.sources.feishu.app_id || "";
-  $("feishuAppSecret").value = config.sources.feishu.app_secret || "";
-  $("feishuTenantToken").value = config.sources.feishu.tenant_access_token || "";
-  $("feishuUserToken").value = config.sources.feishu.user_access_token || "";
+  $("feishuAppId").value = "";
+  $("feishuAppSecret").value = "";
+  $("feishuTenantToken").value = "";
+  $("feishuUserToken").value = "";
+  $("feishuMessagesEnabled").checked = Boolean(config.sources.feishu.messages.enabled);
   $("feishuChatIds").value = (config.sources.feishu.messages.chat_ids || []).join(", ");
+  $("feishuCalendarEnabled").checked = Boolean(config.sources.feishu.calendar.enabled);
   $("feishuCalendarIds").value = (config.sources.feishu.calendar.calendar_ids || []).join(", ");
   $("template").value = config.report.template || "";
   $("outputDir").value = config.report.output_dir || "./reports";
+}
+
+function clearSecretFields(config) {
+  config.sources.git.token = "";
+  config.sources.feishu.app_id = "";
+  config.sources.feishu.app_secret = "";
+  config.sources.feishu.tenant_access_token = "";
+  config.sources.feishu.user_access_token = "";
+  config.llm.api_key = "";
+}
+
+function clearSecretInputs() {
+  $("gitToken").value = "";
+  $("feishuAppId").value = "";
+  $("feishuAppSecret").value = "";
+  $("feishuTenantToken").value = "";
+  $("feishuUserToken").value = "";
 }
 
 function readForm() {
@@ -48,10 +67,12 @@ function readForm() {
   config.sources.feishu.app_secret = $("feishuAppSecret").value.trim();
   config.sources.feishu.tenant_access_token = $("feishuTenantToken").value.trim();
   config.sources.feishu.user_access_token = $("feishuUserToken").value.trim();
+  config.sources.feishu.messages.enabled = $("feishuMessagesEnabled").checked;
   config.sources.feishu.messages.chat_ids = $("feishuChatIds")
     .value.split(",")
     .map((item) => item.trim())
     .filter(Boolean);
+  config.sources.feishu.calendar.enabled = $("feishuCalendarEnabled").checked;
   config.sources.feishu.calendar.calendar_ids = $("feishuCalendarIds")
     .value.split(",")
     .map((item) => item.trim())
@@ -105,8 +126,10 @@ $("saveConfig").addEventListener("click", async () => {
   try {
     const config = readForm();
     await requestJson("/api/config", { method: "POST", body: JSON.stringify(config) });
+    clearSecretFields(config);
+    clearSecretInputs();
     currentConfig = config;
-    setStatus("配置已保存，定时任务已重新加载。");
+    setStatus("配置已保存，定时任务已重新加载；密钥仅在当前后端进程中生效，不写入 YAML。");
   } catch (error) {
     setStatus(`保存失败：${error.message}`);
   }
