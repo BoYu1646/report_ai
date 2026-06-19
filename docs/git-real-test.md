@@ -82,9 +82,6 @@ python scripts/test_git_connection.py --repo microsoft/vscode --ignore-proxy
 
 ```yaml
 sources:
-  yuque:
-    enabled: false
-
   git:
     enabled: true
     provider: github

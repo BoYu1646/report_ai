@@ -11,30 +11,44 @@ sources:
   git:
     enabled: true
     provider: github
-    api_base_url: https://api.github.com
-    token: null
+    api_base_url: "https://api.github.com"
+    token: "${GIT_TOKEN}"
     repos:
-      - "org/repo-a"
-    # 默认缺少 Token 时使用演示数据；真实 Git 测试脚本会关闭该开关。
-    use_demo_when_missing_token: true
-    # 是否读取系统代理等环境变量。企业网络需要代理时保持 true；直连测试可设为 false。
-    trust_env: true
+      - "BoYu1646/report_ai"
     include:
       commits: true
       pull_requests: true
       issues: true
+    use_demo_when_missing_token: true
+    trust_env: true
 
-  yuque:
-    # 语雀当前暂不参与测试，默认关闭；需要恢复时改为 true。
-    enabled: false
-    # 普通语雀使用默认地址；企业空间可改为 "https://your-company.yuque.com/api/v2"。
-    api_base_url: "https://www.yuque.com/api/v2"
-    # 支持 ${ENV_NAME} 形式从环境变量读取；真实测试必须提供有效 Token。
-    token: "${YUQUE_TOKEN}"
-    # 从知识库 URL 中提取，例如 https://www.yuque.com/team/project 对应 team/project。
-    namespace: "team/project"
-    user_agent: "report-ai-weekly-assistant"
-    include_docs: true
+  feishu:
+    enabled: true
+    api_base_url: "https://open.feishu.cn/open-apis"
+    # 三种凭证方式任选其一：
+    # 1. 配置 app_id + app_secret，系统自动换 tenant_access_token。
+    # 2. 直接配置 tenant_access_token。
+    # 3. 日历读取用户主日历时可配置 user_access_token。
+    app_id: "${FEISHU_APP_ID}"
+    app_secret: "${FEISHU_APP_SECRET}"
+    tenant_access_token: "${FEISHU_TENANT_ACCESS_TOKEN}"
+    user_access_token: "${FEISHU_USER_ACCESS_TOKEN}"
+    use_demo_when_missing_credentials: true
+    messages:
+      enabled: true
+      chat_ids:
+        # - "oc_xxxxxxxxxxxx"
+      keywords:
+        - "周报"
+        - "本周"
+        - "风险"
+        - "进度"
+      limit_per_chat: 50
+    calendar:
+      enabled: true
+      calendar_ids:
+        - "primary"
+      limit_per_calendar: 50
 
 llm:
   provider: openai_compatible
@@ -46,38 +60,27 @@ llm:
   timeout_seconds: 60
 
 report:
-  template: '# {title}
-
+  template: |
+    # {title}
 
     > 周期：{week_start} 至 {week_end}
-
-    > 数据概览：Git {git_count} 条，语雀 {yuque_count} 条。
-
+    > 数据概览：Git {git_count} 条，飞书 {feishu_count} 条。
 
     ## 本周完成
-
     {done}
 
-
     ## 进行中
-
     {in_progress}
 
-
     ## 风险/阻塞
-
     {risks}
 
-
     ## 下周计划
-
     {next_week}
 
-
     ## 数据来源
-
-    {sources}'
-  title: 研发工作周报
+    {sources}
+  title: "研发工作周报"
   sections:
     - done
     - in_progress

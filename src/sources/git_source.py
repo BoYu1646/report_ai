@@ -169,7 +169,7 @@ class GitSource:
             WorkItem(
                 source="git",
                 type="issue",
-                title="语雀 API 凭证过期时需要明确错误提示",
+                title="Git API 凭证过期时需要明确错误提示",
                 author="qa.demo",
                 status="open",
                 url="https://github.com/org/repo-a/issues/18",

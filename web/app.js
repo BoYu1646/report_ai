@@ -23,8 +23,13 @@ function fillForm(config) {
   $("scheduleCron").value = config.schedule.cron;
   $("gitToken").value = config.sources.git.token || "";
   $("gitRepos").value = (config.sources.git.repos || []).join(", ");
-  $("yuqueToken").value = config.sources.yuque.token || "";
-  $("yuqueNamespace").value = config.sources.yuque.namespace || "";
+  $("feishuAppId").value = config.sources.feishu.app_id || "";
+  $("feishuAppSecret").value = config.sources.feishu.app_secret || "";
+  $("feishuTenantToken").value = config.sources.feishu.tenant_access_token || "";
+  $("feishuUserToken").value = config.sources.feishu.user_access_token || "";
+  $("feishuChatIds").value = (config.sources.feishu.messages.chat_ids || []).join(", ");
+  $("feishuCalendarIds").value = (config.sources.feishu.calendar.calendar_ids || []).join(", ");
+  $("feishuKeywords").value = (config.sources.feishu.messages.keywords || []).join(", ");
   $("template").value = config.report.template || "";
   $("outputDir").value = config.report.output_dir || "./reports";
 }
@@ -37,8 +42,22 @@ function readForm() {
     .value.split(",")
     .map((item) => item.trim())
     .filter(Boolean);
-  config.sources.yuque.token = $("yuqueToken").value.trim();
-  config.sources.yuque.namespace = $("yuqueNamespace").value.trim();
+  config.sources.feishu.app_id = $("feishuAppId").value.trim();
+  config.sources.feishu.app_secret = $("feishuAppSecret").value.trim();
+  config.sources.feishu.tenant_access_token = $("feishuTenantToken").value.trim();
+  config.sources.feishu.user_access_token = $("feishuUserToken").value.trim();
+  config.sources.feishu.messages.chat_ids = $("feishuChatIds")
+    .value.split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+  config.sources.feishu.calendar.calendar_ids = $("feishuCalendarIds")
+    .value.split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+  config.sources.feishu.messages.keywords = $("feishuKeywords")
+    .value.split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
   config.report.template = $("template").value.trim() || currentConfig.report.template;
   config.report.output_dir = $("outputDir").value.trim() || "./reports";
   return config;

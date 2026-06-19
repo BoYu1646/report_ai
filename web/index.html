@@ -11,7 +11,7 @@
     <header class="topbar">
       <div>
         <h1>工作周报助手</h1>
-        <p>Git + 语雀数据自动汇总，LangChain 生成 Markdown 周报。</p>
+        <p>Git + 飞书消息/日程自动汇总，LangChain 生成 Markdown 周报。</p>
       </div>
       <div class="actions">
         <button id="saveConfig">保存配置</button>
@@ -27,8 +27,13 @@
         <p class="hint">调度按服务运行环境的本地时间执行；周报周期固定为当前自然周（周一 00:00 至下周一 00:00）。</p>
         <label>Git Token<input id="gitToken" type="password" /></label>
         <label>Git 仓库，逗号分隔<input id="gitRepos" /></label>
-        <label>语雀 Token<input id="yuqueToken" type="password" /></label>
-        <label>语雀知识库 Namespace<input id="yuqueNamespace" /></label>
+        <label>飞书 App ID<input id="feishuAppId" /></label>
+        <label>飞书 App Secret<input id="feishuAppSecret" type="password" /></label>
+        <label>飞书 Tenant Access Token<input id="feishuTenantToken" type="password" /></label>
+        <label>飞书 User Access Token<input id="feishuUserToken" type="password" /></label>
+        <label>飞书群聊 ID，逗号分隔<input id="feishuChatIds" /></label>
+        <label>飞书日历 ID，逗号分隔<input id="feishuCalendarIds" /></label>
+        <label>飞书消息关键词，逗号分隔<input id="feishuKeywords" /></label>
         <label>周报模板<textarea id="template" rows="16"></textarea></label>
         <label>输出路径<input id="outputDir" /></label>
         <p id="status" class="status">正在加载配置...</p>

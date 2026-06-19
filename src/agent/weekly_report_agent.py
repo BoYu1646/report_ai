@@ -90,7 +90,10 @@ class WeeklyReportAgent:
         template: str | None,
     ) -> str:
         completed = [
-            item for item in items if item.type == "commit" or item.status in {"merged", "closed", "committed", "updated"}
+            item
+            for item in items
+            if item.type in {"commit", "message", "calendar_event"}
+            or item.status in {"merged", "closed", "committed", "updated", "sent"}
         ]
         in_progress = [item for item in items if item.status in {"open", "draft"}]
         risks = [
@@ -121,7 +124,7 @@ class WeeklyReportAgent:
                 week_start=week_start.strftime("%Y-%m-%d %H:%M:%S"),
                 week_end=week_end.strftime("%Y-%m-%d %H:%M:%S"),
                 git_count=str(source_counts.get("git", 0)),
-                yuque_count=str(source_counts.get("yuque", 0)),
+                feishu_count=str(source_counts.get("feishu", 0)),
                 done=done_md,
                 in_progress=in_progress_md,
                 risks=risks_md,

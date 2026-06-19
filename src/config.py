@@ -13,7 +13,7 @@ DEFAULT_CONFIG_PATH = ROOT_DIR / "config" / "example.yaml"
 DEFAULT_REPORT_TEMPLATE = (
     "# {title}\n\n"
     "> 周期：{week_start} 至 {week_end}\n"
-    "> 数据概览：Git {git_count} 条，语雀 {yuque_count} 条。\n\n"
+    "> 数据概览：Git {git_count} 条，飞书 {feishu_count} 条。\n\n"
     "## 本周完成\n{done}\n\n"
     "## 进行中\n{in_progress}\n\n"
     "## 风险/阻塞\n{risks}\n\n"
@@ -43,18 +43,44 @@ class GitSourceConfig(BaseModel):
     trust_env: bool = True
 
 
-class YuqueSourceConfig(BaseModel):
+class FeishuMessageConfig(BaseModel):
     enabled: bool = True
-    api_base_url: str = "https://www.yuque.com/api/v2"
-    token: str | None = None
-    namespace: str | None = None
-    user_agent: str = "report-ai-weekly-assistant"
-    include_docs: bool = True
+    chat_ids: list[str] = Field(default_factory=list)
+    keywords: list[str] = Field(default_factory=list)
+    limit_per_chat: int = Field(default=50, ge=1, le=200)
+
+    @field_validator("chat_ids", "keywords", mode="before")
+    @classmethod
+    def coerce_none_to_list(cls, value: object) -> object:
+        return [] if value is None else value
+
+
+class FeishuCalendarConfig(BaseModel):
+    enabled: bool = True
+    calendar_ids: list[str] = Field(default_factory=lambda: ["primary"])
+    limit_per_calendar: int = Field(default=50, ge=1, le=200)
+
+    @field_validator("calendar_ids", mode="before")
+    @classmethod
+    def coerce_none_to_list(cls, value: object) -> object:
+        return ["primary"] if value is None else value
+
+
+class FeishuSourceConfig(BaseModel):
+    enabled: bool = True
+    api_base_url: str = "https://open.feishu.cn/open-apis"
+    app_id: str | None = None
+    app_secret: str | None = None
+    tenant_access_token: str | None = None
+    user_access_token: str | None = None
+    use_demo_when_missing_credentials: bool = True
+    messages: FeishuMessageConfig = Field(default_factory=FeishuMessageConfig)
+    calendar: FeishuCalendarConfig = Field(default_factory=FeishuCalendarConfig)
 
 
 class SourcesConfig(BaseModel):
     git: GitSourceConfig = Field(default_factory=GitSourceConfig)
-    yuque: YuqueSourceConfig = Field(default_factory=YuqueSourceConfig)
+    feishu: FeishuSourceConfig = Field(default_factory=FeishuSourceConfig)
 
 
 class LLMConfig(BaseModel):

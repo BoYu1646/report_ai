@@ -7,8 +7,8 @@ from pathlib import Path
 from src.agent.weekly_report_agent import WeeklyReportAgent
 from src.config import AppConfig, ROOT_DIR
 from src.models import GenerateRequest, ReportMeta, ReportResponse, WorkItem
+from src.sources.feishu_source import FeishuSource
 from src.sources.git_source import GitSource
-from src.sources.yuque_source import YuqueSource
 from src.time_window import current_natural_week
 
 
@@ -47,8 +47,8 @@ class ReportService:
 
     async def _collect_items(self, week_start: datetime, week_end: datetime) -> list[WorkItem]:
         git_items = await GitSource(self.config.sources.git).fetch(week_start, week_end)
-        yuque_items = await YuqueSource(self.config.sources.yuque).fetch(week_start, week_end)
-        return sorted([*git_items, *yuque_items], key=lambda item: item.updated_at, reverse=True)
+        feishu_items = await FeishuSource(self.config.sources.feishu).fetch(week_start, week_end)
+        return sorted([*git_items, *feishu_items], key=lambda item: item.updated_at, reverse=True)
 
     def _write_report(self, markdown: str) -> Path:
         output_dir = self._output_dir()

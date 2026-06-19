@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 
 class WorkItem(BaseModel):
-    source: Literal["git", "yuque"]
+    source: Literal["git", "feishu"]
     type: str
     title: str
     author: str | None = None
@@ -15,6 +15,7 @@ class WorkItem(BaseModel):
     url: str | None = None
     updated_at: datetime
     repo: str | None = None
+    chat_name: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 

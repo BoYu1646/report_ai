@@ -69,16 +69,16 @@ async def generate_report(request: GenerateRequest | None = None) -> ReportRespo
     except httpx.HTTPStatusError as exc:
         status_code = exc.response.status_code
         if status_code == 401:
-            detail = "Git API 认证失败：Token 无效、过期，或页面中填写了错误的 Git Token。公共仓库可清空 Token 后重试。"
+            detail = "数据源 API 认证失败：Token 无效、过期，或页面中填写了错误的凭证。"
         elif status_code == 403:
-            detail = "Git API 权限不足或触发限流：请检查 Token 权限、组织授权或稍后重试。"
+            detail = "数据源 API 权限不足或触发限流：请检查 Token 权限、应用授权或稍后重试。"
         elif status_code == 404:
-            detail = "Git 仓库不存在或 Token 无权访问该仓库，请检查 owner/repo 与 Token 权限。"
+            detail = "数据源资源不存在或 Token 无权访问，请检查仓库、群聊、日历 ID 与权限配置。"
         else:
-            detail = f"Git API 请求失败：HTTP {status_code}。"
+            detail = f"数据源 API 请求失败：HTTP {status_code}。"
         raise HTTPException(status_code=502, detail=detail) from exc
     except httpx.RequestError as exc:
-        raise HTTPException(status_code=502, detail=f"Git API 网络请求失败：{exc.__class__.__name__}。") from exc
+        raise HTTPException(status_code=502, detail=f"数据源 API 网络请求失败：{exc.__class__.__name__}。") from exc
 
 
 @app.get("/api/reports/latest")
