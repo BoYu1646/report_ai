@@ -1,4 +1,7 @@
 let currentConfig = null;
+let latestReportSignature = "";
+
+const AUTO_REFRESH_MS = 15000;
 
 const $ = (id) => document.getElementById(id);
 
@@ -62,12 +65,40 @@ function renderMarkdown(markdown) {
   $("report").innerHTML = marked.parse(markdown || "# 暂无周报");
 }
 
+function reportFilename(outputPath) {
+  return outputPath ? outputPath.split(/[\\/]/).pop() : "";
+}
+
+function updateLatestMeta(latest) {
+  if (!latest.output_path) {
+    $("meta").textContent = "暂无生成记录";
+    return;
+  }
+  $("meta").textContent = `最新报告：${reportFilename(latest.output_path)}，更新时间：${latest.updated_at || "未知"}`;
+}
+
+async function loadLatestReport({ silent = false } = {}) {
+  const latest = await requestJson("/api/reports/latest");
+  const signature = latest.output_path || "";
+  const changed = signature !== latestReportSignature;
+
+  // 后端定时任务生成新文件后，页面自动刷新展示最新 Markdown。
+  if (changed || !silent) {
+    renderMarkdown(latest.markdown);
+    updateLatestMeta(latest);
+    latestReportSignature = signature;
+  }
+
+  if (changed && silent && latest.output_path) {
+    setStatus(`检测到定时任务生成的新周报：${reportFilename(latest.output_path)}`);
+  }
+}
+
 async function loadInitial() {
   const config = await requestJson("/api/config");
   fillForm(config);
-  const latest = await requestJson("/api/reports/latest");
-  renderMarkdown(latest.markdown);
-  setStatus("配置已加载。");
+  await loadLatestReport();
+  setStatus("配置已加载，页面会自动刷新最新周报。");
 }
 
 $("saveConfig").addEventListener("click", async () => {
@@ -91,6 +122,7 @@ $("generate").addEventListener("click", async () => {
       }),
     });
     renderMarkdown(result.markdown);
+    latestReportSignature = result.meta.output_path;
     $("meta").textContent = `周期 ${result.meta.week_start} 至 ${result.meta.week_end}，工作项 ${result.meta.item_count} 条，LLM：${
       result.meta.used_llm ? "已启用" : "本地兜底"
     }`;
@@ -101,3 +133,6 @@ $("generate").addEventListener("click", async () => {
 });
 
 loadInitial().catch((error) => setStatus(`初始化失败：${error.message}`));
+setInterval(() => {
+  loadLatestReport({ silent: true }).catch((error) => setStatus(`自动刷新失败：${error.message}`));
+}, AUTO_REFRESH_MS);

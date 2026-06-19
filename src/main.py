@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
 
 import httpx
@@ -82,8 +83,22 @@ async def generate_report(request: GenerateRequest | None = None) -> ReportRespo
 
 
 @app.get("/api/reports/latest")
-async def latest_report() -> dict[str, str]:
-    return {"markdown": ReportService(state.config).latest_markdown()}
+async def latest_report() -> dict[str, str | None]:
+    service = ReportService(state.config)
+    latest = service.latest_report_path()
+    if not latest:
+        return {
+            "markdown": service.latest_markdown(),
+            "output_path": None,
+            "updated_at": None,
+        }
+
+    # 前端定时刷新依赖文件路径与更新时间判断是否出现新的周报产物。
+    return {
+        "markdown": latest.read_text(encoding="utf-8"),
+        "output_path": str(latest),
+        "updated_at": datetime.fromtimestamp(latest.stat().st_mtime).isoformat(timespec="seconds"),
+    }
 
 
 @app.get("/api/reports/export")
