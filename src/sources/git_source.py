@@ -58,17 +58,21 @@ class GitSource:
             f"/repos/{repo}/commits",
             params={"since": since.isoformat(), "until": until.isoformat(), "per_page": 50},
         )
-        response.raise_for_status()
+        self._raise_for_status(response, repo)
         items = []
         for commit in response.json():
             commit_info = commit.get("commit", {})
             author_info = commit_info.get("author") or {}
-            message = (commit_info.get("message") or "").splitlines()[0]
+            raw_message = commit_info.get("message") or ""
+            message_lines = raw_message.splitlines()
+            message = message_lines[0] if message_lines else ""
+            description = "\n".join(message_lines[1:]).strip() or None
             items.append(
                 WorkItem(
                     source="git",
                     type="commit",
                     title=message or commit.get("sha", "")[:8],
+                    description=description,
                     author=author_info.get("name"),
                     status="committed",
                     url=commit.get("html_url"),
@@ -86,7 +90,7 @@ class GitSource:
             f"/repos/{repo}/pulls",
             params={"state": "all", "sort": "updated", "direction": "desc", "per_page": 50},
         )
-        response.raise_for_status()
+        self._raise_for_status(response, repo)
         items = []
         for pr in response.json():
             updated_at = self._parse_dt(pr.get("updated_at"))
@@ -97,6 +101,7 @@ class GitSource:
                     source="git",
                     type="pull_request",
                     title=pr.get("title") or f"PR #{pr.get('number')}",
+                    description=pr.get("body") or None,
                     author=(pr.get("user") or {}).get("login"),
                     status="merged" if pr.get("merged_at") else pr.get("state"),
                     url=pr.get("html_url"),
@@ -114,7 +119,7 @@ class GitSource:
             f"/repos/{repo}/issues",
             params={"state": "all", "since": since.isoformat(), "per_page": 50},
         )
-        response.raise_for_status()
+        self._raise_for_status(response, repo)
         items = []
         for issue in response.json():
             if "pull_request" in issue:
@@ -127,6 +132,7 @@ class GitSource:
                     source="git",
                     type="issue",
                     title=issue.get("title") or f"Issue #{issue.get('number')}",
+                    description=issue.get("body") or None,
                     author=(issue.get("user") or {}).get("login"),
                     status=issue.get("state"),
                     url=issue.get("html_url"),
@@ -184,6 +190,17 @@ class GitSource:
         if not value:
             return datetime.now(UTC)
         return datetime.fromisoformat(value.replace("Z", "+00:00"))
+
+    def _raise_for_status(self, response: httpx.Response, repo: str) -> None:
+        try:
+            response.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            if response.status_code == 403 and "rate limit" in response.text.lower():
+                raise RuntimeError(
+                    f"GitHub API 限流：仓库 `{repo}` 未配置有效 Git Token 或请求过频。"
+                    "请在页面填写 Git Token，或关闭 Git 数据源后只采集飞书。"
+                ) from exc
+            raise
 
     @staticmethod
     def _demo_times(week_start: datetime, week_end: datetime, count: int) -> list[datetime]:

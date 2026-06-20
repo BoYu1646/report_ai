@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 from datetime import UTC, datetime, time, timedelta
 from typing import Any
@@ -10,6 +11,13 @@ from src.config import FeishuSourceConfig, is_placeholder_secret
 from src.models import WorkItem
 
 
+class PartialFetchError(RuntimeError):
+    def __init__(self, items: list[WorkItem], errors: list[str]) -> None:
+        super().__init__("；".join(errors))
+        self.items = items
+        self.errors = errors
+
+
 class FeishuSource:
     def __init__(self, config: FeishuSourceConfig) -> None:
         self.config = config
@@ -17,6 +25,8 @@ class FeishuSource:
     async def fetch(self, week_start: datetime, week_end: datetime) -> list[WorkItem]:
         if not self.config.enabled:
             return []
+        if self.config.auth_mode == "lark_cli":
+            return await self._fetch_with_lark_cli(week_start, week_end)
         if self._missing_credentials():
             if self.config.use_demo_when_missing_credentials:
                 return self._demo_items(week_start, week_end)
@@ -30,11 +40,170 @@ class FeishuSource:
             timeout=30,
             follow_redirects=True,
         ) as client:
+            errors: list[str] = []
             if self.config.messages.enabled:
-                items.extend(await self._fetch_messages(client, week_start, week_end))
+                try:
+                    items.extend(await self._fetch_messages(client, week_start, week_end))
+                except Exception as exc:
+                    errors.append(f"飞书消息采集失败：{exc}")
             if self.config.calendar.enabled:
-                items.extend(await self._fetch_calendar_events(client, week_start, week_end))
+                try:
+                    items.extend(await self._fetch_calendar_events(client, week_start, week_end))
+                except Exception as exc:
+                    errors.append(f"飞书日程采集失败：{exc}")
+            if errors:
+                if not items:
+                    raise RuntimeError("；".join(errors))
+                raise PartialFetchError(items, errors)
         return items
+
+    async def _fetch_with_lark_cli(self, week_start: datetime, week_end: datetime) -> list[WorkItem]:
+        items: list[WorkItem] = []
+        errors: list[str] = []
+        if self.config.messages.enabled:
+            try:
+                items.extend(await self._fetch_messages_with_lark_cli(week_start, week_end))
+            except Exception as exc:
+                errors.append(f"飞书消息采集失败：{exc}")
+        if self.config.calendar.enabled:
+            try:
+                items.extend(await self._fetch_calendar_events_with_lark_cli(week_start, week_end))
+            except Exception as exc:
+                errors.append(f"飞书日程采集失败：{exc}")
+        if errors:
+            if not items:
+                raise RuntimeError("；".join(errors))
+            raise PartialFetchError(items, errors)
+        return items
+
+    async def _fetch_messages_with_lark_cli(self, week_start: datetime, week_end: datetime) -> list[WorkItem]:
+        if not self.config.messages.chat_ids:
+            return []
+        items: list[WorkItem] = []
+        for chat_id in self.config.messages.chat_ids:
+            payload = await self._run_lark_cli(
+                "lark-cli",
+                "im",
+                "+chat-messages-list",
+                "--as",
+                self.config.lark_cli_identity,
+                "--chat-id",
+                chat_id,
+                "--start",
+                self._local_iso(week_start),
+                "--end",
+                self._local_iso(week_end),
+                "--order",
+                "asc",
+                "--page-size",
+                str(min(self.config.messages.limit_per_chat, 50)),
+                "--json",
+            )
+
+            for message in (payload.get("data") or {}).get("messages") or []:
+                items.append(
+                    WorkItem(
+                        source="feishu",
+                        type="message",
+                        title=self._message_title(message),
+                        author=self._sender_name(message),
+                        status="sent",
+                        url=message.get("message_app_link"),
+                        updated_at=self._parse_cli_time(message.get("create_time") or message.get("update_time")),
+                        metadata={
+                            "chat_id": chat_id,
+                            "message_id": message.get("message_id"),
+                            "message_type": message.get("msg_type"),
+                        },
+                    )
+                )
+        return items
+
+    async def _fetch_calendar_events_with_lark_cli(
+        self, week_start: datetime, week_end: datetime
+    ) -> list[WorkItem]:
+        items: list[WorkItem] = []
+        start_time = str(int(week_start.timestamp()))
+        end_time = str(int(week_end.timestamp()))
+        for calendar_id in self.config.calendar.calendar_ids:
+            payload = await self._run_lark_cli(
+                "lark-cli",
+                "calendar",
+                "events",
+                "instance_view",
+                "--as",
+                self.config.lark_cli_identity,
+                "--calendar-id",
+                calendar_id,
+                "--start-time",
+                start_time,
+                "--end-time",
+                end_time,
+                "--json",
+            )
+            for event in self._payload_items(payload):
+                start_at = self._parse_event_time(event.get("start_time")) or week_start
+                if not self._in_window(start_at, week_start, week_end):
+                    continue
+                organizer = event.get("event_organizer") or event.get("organizer") or {}
+                items.append(
+                    WorkItem(
+                        source="feishu",
+                        type="calendar_event",
+                        title=event.get("summary") or "未命名日程",
+                        description=event.get("description") or None,
+                        author=organizer.get("display_name"),
+                        status=event.get("status") or "scheduled",
+                        url=event.get("app_link"),
+                        updated_at=start_at,
+                        metadata={
+                            "calendar_id": calendar_id,
+                            "event_id": event.get("event_id"),
+                            "free_busy_status": event.get("free_busy_status"),
+                            "self_rsvp_status": event.get("self_rsvp_status"),
+                        },
+                    )
+                )
+        return items
+
+    async def _run_lark_cli(self, *command: str) -> dict[str, Any]:
+        last_error = ""
+        for attempt in range(2):
+            payload, error = await self._run_lark_cli_once(*command)
+            if payload is not None:
+                return payload
+            last_error = error
+            if "EOF" not in error and "transport" not in error:
+                break
+            if attempt == 0:
+                await asyncio.sleep(1)
+        raise RuntimeError(last_error)
+
+    async def _run_lark_cli_once(self, *command: str) -> tuple[dict[str, Any] | None, str]:
+        process = await asyncio.create_subprocess_exec(
+            *command,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, stderr = await process.communicate()
+        stdout_text = stdout.decode("utf-8", errors="replace")
+        stderr_text = stderr.decode("utf-8", errors="replace")
+        detail = stderr_text or stdout_text
+        if process.returncode != 0:
+            return None, f"lark-cli 执行失败：{detail.strip()}"
+        try:
+            payload = json.loads(stdout_text)
+        except json.JSONDecodeError as exc:
+            return None, f"lark-cli 返回非 JSON：{detail.strip() or exc}"
+        if payload.get("ok") is False:
+            return None, f"lark-cli 返回失败：{payload}"
+        return payload, ""
+
+    @staticmethod
+    def _payload_items(payload: dict[str, Any]) -> list[dict[str, Any]]:
+        data = payload.get("data") if isinstance(payload.get("data"), dict) else payload
+        items = data.get("items", []) if isinstance(data, dict) else []
+        return [item for item in items if isinstance(item, dict)]
 
     def _missing_credentials(self) -> bool:
         has_token = not is_placeholder_secret(self.config.tenant_access_token) or not is_placeholder_secret(
@@ -120,13 +289,14 @@ class FeishuSource:
             data = self._data(response.json(), "calendar_events")
             for event in data.get("items", []):
                 start_at = self._parse_event_time(event.get("start_time")) or week_start
-                if start_at < week_start or start_at >= week_end:
+                if not self._in_window(start_at, week_start, week_end):
                     continue
                 items.append(
                     WorkItem(
                         source="feishu",
                         type="calendar_event",
                         title=event.get("summary") or "未命名日程",
+                        description=event.get("description") or None,
                         author=(event.get("organizer") or {}).get("display_name"),
                         status=event.get("status") or "scheduled",
                         url=event.get("app_link"),
@@ -187,6 +357,25 @@ class FeishuSource:
             return datetime.fromtimestamp(number, UTC)
         return datetime.fromisoformat(text.replace("Z", "+00:00"))
 
+    @staticmethod
+    def _parse_cli_time(value: Any) -> datetime:
+        if not value:
+            return datetime.now().astimezone(UTC)
+        text = str(value)
+        try:
+            parsed = datetime.strptime(text, "%Y-%m-%d %H:%M")
+        except ValueError:
+            parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            parsed = parsed.astimezone()
+        return parsed.astimezone(UTC)
+
+    @staticmethod
+    def _local_iso(value: datetime) -> str:
+        if value.tzinfo is None:
+            value = value.astimezone()
+        return value.isoformat()
+
     def _parse_event_time(self, value: Any) -> datetime | None:
         if not value:
             return None
@@ -196,6 +385,10 @@ class FeishuSource:
             if value.get("date"):
                 return datetime.combine(datetime.fromisoformat(value["date"]).date(), time.min)
         return self._parse_ts(value)
+
+    @staticmethod
+    def _in_window(value: datetime, start: datetime, end: datetime) -> bool:
+        return start.timestamp() <= value.timestamp() < end.timestamp()
 
     def _demo_items(self, week_start: datetime, week_end: datetime) -> list[WorkItem]:
         times = self._demo_times(week_start, week_end, count=3)

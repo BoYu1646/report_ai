@@ -7,6 +7,7 @@ import httpx
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
+from pydantic import ValidationError
 
 from src.config import (
     DEFAULT_CONFIG_PATH,
@@ -59,7 +60,10 @@ async def get_config() -> dict:
 
 @app.post("/api/config")
 async def update_config(payload: dict) -> dict[str, str]:
-    incoming_config = AppConfig.model_validate(payload)
+    try:
+        incoming_config = AppConfig.model_validate(payload)
+    except ValidationError as exc:
+        raise HTTPException(status_code=422, detail=exc.errors()) from exc
     state.config = merge_runtime_secrets(incoming_config, state.config)
     save_config(state.config, DEFAULT_CONFIG_PATH)
     scheduler = getattr(app.state, "scheduler", None)

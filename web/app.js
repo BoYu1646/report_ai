@@ -2,11 +2,54 @@ let currentConfig = null;
 let latestReportSignature = "";
 
 const AUTO_REFRESH_MS = 15000;
+const CRON_PRESETS = new Set(["*/2 * * * *", "*/5 * * * *", "0 * * * *", "0 18 * * 5"]);
 
 const $ = (id) => document.getElementById(id);
 
 function setStatus(message) {
   $("status").textContent = message;
+}
+
+function setButtonBusy(id, busy, label) {
+  const button = $(id);
+  if (!button) return;
+  if (!button.dataset.defaultLabel) {
+    button.dataset.defaultLabel = button.textContent;
+  }
+  button.disabled = busy;
+  button.textContent = busy ? label : button.dataset.defaultLabel;
+}
+
+function updateFeishuAuthFields() {
+  const mode = $("feishuAuthMode").value;
+  $("feishuLarkCliFields").hidden = mode !== "lark_cli";
+  $("feishuOpenApiFields").hidden = mode !== "openapi";
+}
+
+function updateSchedulePreset(cron) {
+  const isPreset = CRON_PRESETS.has(cron);
+  $("schedulePreset").value = isPreset ? cron : "custom";
+  $("scheduleCron").hidden = isPreset;
+  if (!isPreset) {
+    $("scheduleCron").value = cron;
+  }
+}
+
+function applySchedulePreset() {
+  const preset = $("schedulePreset").value;
+  $("scheduleCron").hidden = preset !== "custom";
+  if (preset !== "custom") {
+    $("scheduleCron").value = preset;
+    return;
+  }
+  $("scheduleCron").focus();
+}
+
+function validateCron(cron) {
+  const parts = cron.trim().split(/\s+/);
+  if (parts.length !== 5 || parts.some((part) => !part)) {
+    throw new Error("Cron 表达式必须是 5 段格式，例如 */2 * * * *");
+  }
 }
 
 async function requestJson(url, options = {}) {
@@ -24,12 +67,17 @@ async function requestJson(url, options = {}) {
 function fillForm(config) {
   currentConfig = config;
   $("scheduleCron").value = config.schedule.cron;
+  updateSchedulePreset(config.schedule.cron);
+  $("gitEnabled").checked = Boolean(config.sources.git.enabled);
   $("gitToken").value = "";
   $("gitRepos").value = (config.sources.git.repos || []).join(", ");
   $("feishuAppId").value = "";
   $("feishuAppSecret").value = "";
   $("feishuTenantToken").value = "";
   $("feishuUserToken").value = "";
+  $("feishuAuthMode").value = config.sources.feishu.auth_mode || "openapi";
+  $("feishuLarkCliIdentity").value = config.sources.feishu.lark_cli_identity || "user";
+  updateFeishuAuthFields();
   $("feishuMessagesEnabled").checked = Boolean(config.sources.feishu.messages.enabled);
   $("feishuChatIds").value = (config.sources.feishu.messages.chat_ids || []).join(", ");
   $("feishuCalendarEnabled").checked = Boolean(config.sources.feishu.calendar.enabled);
@@ -57,7 +105,10 @@ function clearSecretInputs() {
 
 function readForm() {
   const config = structuredClone(currentConfig);
-  config.schedule.cron = $("scheduleCron").value.trim();
+  const schedulePreset = $("schedulePreset").value;
+  config.schedule.cron = schedulePreset === "custom" ? $("scheduleCron").value.trim() : schedulePreset;
+  validateCron(config.schedule.cron);
+  config.sources.git.enabled = $("gitEnabled").checked;
   config.sources.git.token = $("gitToken").value.trim();
   config.sources.git.repos = $("gitRepos")
     .value.split(",")
@@ -67,6 +118,8 @@ function readForm() {
   config.sources.feishu.app_secret = $("feishuAppSecret").value.trim();
   config.sources.feishu.tenant_access_token = $("feishuTenantToken").value.trim();
   config.sources.feishu.user_access_token = $("feishuUserToken").value.trim();
+  config.sources.feishu.auth_mode = $("feishuAuthMode").value;
+  config.sources.feishu.lark_cli_identity = $("feishuLarkCliIdentity").value;
   config.sources.feishu.messages.enabled = $("feishuMessagesEnabled").checked;
   config.sources.feishu.messages.chat_ids = $("feishuChatIds")
     .value.split(",")
@@ -124,6 +177,7 @@ async function loadInitial() {
 
 $("saveConfig").addEventListener("click", async () => {
   try {
+    setButtonBusy("saveConfig", true, "保存中...");
     const config = readForm();
     await requestJson("/api/config", { method: "POST", body: JSON.stringify(config) });
     clearSecretFields(config);
@@ -132,11 +186,14 @@ $("saveConfig").addEventListener("click", async () => {
     setStatus("配置已保存，定时任务已重新加载；密钥仅在当前后端进程中生效，不写入 YAML。");
   } catch (error) {
     setStatus(`保存失败：${error.message}`);
+  } finally {
+    setButtonBusy("saveConfig", false);
   }
 });
 
 $("generate").addEventListener("click", async () => {
   try {
+    setButtonBusy("generate", true, "生成中...");
     setStatus("正在生成周报...");
     const result = await requestJson("/api/reports/generate", {
       method: "POST",
@@ -146,14 +203,24 @@ $("generate").addEventListener("click", async () => {
     });
     renderMarkdown(result.markdown);
     latestReportSignature = result.meta.output_path;
-    $("meta").textContent = `周期 ${result.meta.week_start} 至 ${result.meta.week_end}，工作项 ${result.meta.item_count} 条，LLM：${
+    $("meta").textContent = `最新报告：${reportFilename(result.meta.output_path)}，周期 ${result.meta.week_start} 至 ${result.meta.week_end}，工作项 ${result.meta.item_count} 条，LLM：${
       result.meta.used_llm ? "已启用" : "本地兜底"
     }`;
-    setStatus(`已生成：${result.meta.output_path}`);
+    const warningCount = (result.meta.collection_errors || []).length;
+    setStatus(
+      warningCount
+        ? `已生成：${result.meta.output_path}；采集告警 ${warningCount} 条，请查看报告末尾。`
+        : `已生成：${result.meta.output_path}`
+    );
   } catch (error) {
     setStatus(`生成失败：${error.message}`);
+  } finally {
+    setButtonBusy("generate", false);
   }
 });
+
+$("feishuAuthMode").addEventListener("change", updateFeishuAuthFields);
+$("schedulePreset").addEventListener("change", applySchedulePreset);
 
 loadInitial().catch((error) => setStatus(`初始化失败：${error.message}`));
 setInterval(() => {

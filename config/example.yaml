@@ -1,5 +1,5 @@
 schedule:
-  cron: '* * * * *'
+  cron: '*/5 * * * *'
 sources:
   git:
     enabled: true
@@ -16,27 +16,30 @@ sources:
     trust_env: false
   feishu:
     enabled: true
+    auth_mode: lark_cli
+    lark_cli_identity: user
     api_base_url: https://open.feishu.cn/open-apis
     app_id: ${FEISHU_APP_ID}
     app_secret: ${FEISHU_APP_SECRET}
     tenant_access_token: ${FEISHU_TENANT_ACCESS_TOKEN}
     user_access_token: ${FEISHU_USER_ACCESS_TOKEN}
-    use_demo_when_missing_credentials: true
+    use_demo_when_missing_credentials: false
     messages:
       enabled: true
-      chat_ids: []
+      chat_ids:
+      - oc_c65e84bb78aa536e48efb159b6b768b3
       limit_per_chat: 50
     calendar:
       enabled: true
       calendar_ids:
-      - primary
+      - feishu.cn_nF71ypDXBIX7b53TjtDMif@group.calendar.feishu.cn
       limit_per_calendar: 50
 llm:
   provider: openai_compatible
   model: gpt-4o-mini
   api_key: ${OPENAI_API_KEY}
   base_url: https://api.openai.com/v1
-  temperature: 0.2
+  temperature: 0.8
   timeout_seconds: 60
 report:
   template: '# {title}
@@ -44,9 +47,17 @@ report:
 
     > 周期：{week_start} 至 {week_end}
 
-    > 数据概览：Git {git_count} 条，
+    > 数据概览：Git {git_count} 条，飞书 {feishu_count} 条。
 
-    飞书 {feishu_count} 条。
+
+    ## 本周概览
+
+    {executive_summary}
+
+
+    ## 重点成果
+
+    {highlights}
 
 
     ## 本周完成
@@ -67,6 +78,11 @@ report:
     ## 下周计划
 
     {next_week}
+
+
+    ## 工作明细
+
+    {details}
 
 
     ## 数据来源

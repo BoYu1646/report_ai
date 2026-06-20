@@ -2,15 +2,15 @@
 
 企业级研发周报 Agent：按配置定时采集 Git commit / PR / issue 与飞书消息、日程，通过 LangChain 1.x 调用大模型生成结构化 Markdown 周报，并提供 FastAPI + Web UI 的结果展示、配置和导出能力。
 
-> 说明：题目名称提到“每 2 分钟”，必选实现项提到“每分钟定时触发”。本项目采用可配置 Cron，示例配置默认每分钟触发；如需每 2 分钟触发，将 `schedule.cron` 改为 `*/2 * * * *`。
+> 说明：本项目采用可配置 Cron，示例配置默认每 2 分钟触发；也可在页面选择常用频率或填写自定义 Cron 表达式。
 
 ## 项目能力
 
 - 可配置：通过 `config/example.yaml` 修改调度、Git、飞书、LLM、模板、输出目录等行为。
-- 自动触发：APScheduler 按 Cron 定时生成，示例默认每分钟。
+- 自动触发：APScheduler 按 Cron 定时生成，示例默认每 2 分钟。
 - 自然周：所有周报固定采集当前自然周，即周一 00:00 到下周一 00:00，不使用“当前时间往前 7 天”。
 - 数据源：接入 GitHub commit / PR / issue，以及飞书消息 / 日程。
-- Agent 汇总：LangChain 1.x + ChatOpenAI 兼容接口，输出 `本周完成`、`进行中`、`风险/阻塞`、`下周计划`。
+- Agent 汇总：LangChain 1.x + ChatOpenAI 兼容接口，先优化任务描述，再输出 `本周完成`、`进行中`、`风险/阻塞`、`下周计划`。
 - 结果展示：Web UI 渲染 Markdown，支持手动触发与导出 `.md` 文件。
 - 可直接运行：未配置真实 Git / 飞书凭证时可使用演示数据；未配置模型 Key 时使用本地兜底生成器。
 
@@ -96,7 +96,7 @@ export OPENAI_API_KEY="sk_xxx"
 
 | 字段 | 说明 |
 | --- | --- |
-| `schedule.cron` | Cron 表达式，示例默认 `* * * * *` 每分钟执行 |
+| `schedule.cron` | Cron 表达式，示例默认 `*/2 * * * *` 每 2 分钟执行 |
 | `sources.git.repos` | GitHub 仓库列表，例如 `org/repo-a` |
 | `sources.git.token` | Git API Token |
 | `sources.git.use_demo_when_missing_token` | 缺少 Token 时是否使用演示 Git 数据 |
@@ -161,10 +161,11 @@ Agent 流程：
 2. `GitSource` 采集当前自然周内的 commit / PR / issue。
 3. `FeishuSource` 采集当前自然周内的飞书消息 / 日程。
 4. 数据源适配器将外部 API 响应归一化为 `WorkItem`。
-5. `WeeklyReportAgent` 使用 LangChain 1.x 组装 Prompt、自定义模板和自然周边界后调用模型。
-6. 模型不可用时使用本地兜底生成器，保证系统可演示、可验收。
-7. Markdown 保存到 `reports/weekly-report-*.md`。
-8. Web UI 调用 `/api/reports/latest` 渲染，调用 `/api/reports/export` 导出。
+5. `WeeklyReportAgent` 先调用模型基于原始标题、正文、来源上下文生成更清晰的任务描述。
+6. `WeeklyReportAgent` 使用优化后的任务描述、自定义模板和自然周边界再次调用模型生成 Markdown。
+7. 模型不可用时使用本地兜底生成器，保证系统可演示、可验收。
+8. Markdown 保存到 `reports/weekly-report-*.md`。
+9. Web UI 调用 `/api/reports/latest` 渲染，调用 `/api/reports/export` 导出。
 
 Prompt 约束：
 

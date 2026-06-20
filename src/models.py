@@ -10,6 +10,7 @@ class WorkItem(BaseModel):
     source: Literal["git", "feishu"]
     type: str
     title: str
+    description: str | None = None
     author: str | None = None
     status: str | None = None
     url: str | None = None
@@ -31,6 +32,7 @@ class ReportMeta(BaseModel):
     item_count: int
     source_counts: dict[str, int]
     used_llm: bool
+    collection_errors: list[str] = Field(default_factory=list)
 
 
 class ReportResponse(BaseModel):

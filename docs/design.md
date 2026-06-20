@@ -134,7 +134,7 @@ flowchart LR
 职责：
 
 - 使用 APScheduler 注册 Cron 任务。
-- 示例默认 `* * * * *`，每分钟触发。
+- 示例默认 `*/2 * * * *`，每 2 分钟触发。
 - 使用 `coalesce=True` 与 `max_instances=1` 避免任务堆积和并发写同一类报告。
 
 ### 3.7 Web 层

@@ -57,6 +57,35 @@ python scripts/test_feishu_connection.py --chat-ids "oc_xxx" --no-demo
 
 如果只验证飞书消息，建议加 `--messages-only`，避免日历权限未开通时影响消息测试。
 
+如果本机已经通过 `lark-cli auth login` 完成用户授权，也可以不传飞书密钥，直接复用本机登录态测试群消息：
+
+```bash
+python scripts/test_feishu_connection.py \
+  --auth-mode lark_cli \
+  --chat-ids "oc_xxx" \
+  --messages-only \
+  --no-demo
+```
+
+验证日程时建议先列出当前用户可访问的日历，找到目标日历的真实 `calendar_id`。飞书左侧显示名如“测试日历”不能直接填到配置里：
+
+```bash
+lark-cli calendar calendars list --as user --json
+```
+
+然后按自然周查询该日历的日程：
+
+```bash
+lark-cli calendar events instance_view \
+  --as user \
+  --calendar-id "primary" \
+  --start-time "1781452800" \
+  --end-time "1782057600" \
+  --json
+```
+
+如果使用 `lark_cli` 认证模式，必须使用 `--as user` 读取个人日程；`--as bot` 通常只能看到机器人自己的空日历。若在自动化环境看到 `keychain not initialized`，请在普通终端执行 `lark-cli config keychain-downgrade`，或改用 OpenAPI 的 `user_access_token`。
+
 ## 4. 使用 Web 页面临时测试
 
 页面支持临时输入飞书凭证，但不会把密钥保存到 YAML：
@@ -98,4 +127,8 @@ http://localhost:8000
 
 ### 返回 0 条日程
 
-确认日历 ID 正确，并确认当前自然周内存在日程。用户主日历通常需要用户访问令牌。
+确认日历 ID 正确，并确认当前自然周内存在日程。用户主日历通常需要用户访问令牌；自建日历或共享日历需要填写对应的真实 `calendar_id`。
+
+### 定时任务看起来没有触发
+
+先手动点击“立即生成”。如果某个数据源采集失败，报告末尾会出现“采集告警”，页面状态也会提示告警数量。常见原因包括 Git/飞书凭证无效、`lark-cli` keychain 不可用、日历 ID 填成了显示名称，或使用 bot 身份读取用户日程。

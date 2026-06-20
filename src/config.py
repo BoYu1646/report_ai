@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 import yaml
+from apscheduler.triggers.cron import CronTrigger
 from pydantic import BaseModel, Field, field_validator
 
 
@@ -14,10 +15,13 @@ DEFAULT_REPORT_TEMPLATE = (
     "# {title}\n\n"
     "> 周期：{week_start} 至 {week_end}\n"
     "> 数据概览：Git {git_count} 条，飞书 {feishu_count} 条。\n\n"
+    "## 本周概览\n{executive_summary}\n\n"
+    "## 重点成果\n{highlights}\n\n"
     "## 本周完成\n{done}\n\n"
     "## 进行中\n{in_progress}\n\n"
     "## 风险/阻塞\n{risks}\n\n"
     "## 下周计划\n{next_week}\n\n"
+    "## 工作明细\n{details}\n\n"
     "## 数据来源\n{sources}\n"
 )
 
@@ -32,7 +36,19 @@ SECRET_FIELD_PATHS: tuple[tuple[str, ...], ...] = (
 
 
 class ScheduleConfig(BaseModel):
-    cron: str = "* * * * *"
+    cron: str = "*/2 * * * *"
+
+    @field_validator("cron")
+    @classmethod
+    def validate_cron(cls, value: str) -> str:
+        cron = value.strip()
+        if not cron:
+            raise ValueError("schedule.cron 不能为空")
+        try:
+            CronTrigger.from_crontab(cron)
+        except ValueError as exc:
+            raise ValueError("schedule.cron 必须是 5 段 crontab 表达式，例如 */2 * * * *") from exc
+        return cron
 
 
 class GitIncludeConfig(BaseModel):
@@ -76,6 +92,8 @@ class FeishuCalendarConfig(BaseModel):
 
 class FeishuSourceConfig(BaseModel):
     enabled: bool = True
+    auth_mode: Literal["openapi", "lark_cli"] = "openapi"
+    lark_cli_identity: Literal["user", "bot"] = "user"
     api_base_url: str = "https://open.feishu.cn/open-apis"
     app_id: str | None = None
     app_secret: str | None = None
