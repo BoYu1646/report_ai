@@ -35,20 +35,31 @@ class GitSource:
             headers["Authorization"] = f"Bearer {self.config.token}"
 
         items: list[WorkItem] = []
-        async with httpx.AsyncClient(
-            base_url=self.config.api_base_url,
-            headers=headers,
-            timeout=30,
-            trust_env=self.config.trust_env,
-            follow_redirects=True,
-        ) as client:
-            for repo in self.config.repos:
-                if self.config.include.commits:
-                    items.extend(await self._fetch_commits(client, repo, since, until))
-                if self.config.include.pull_requests:
-                    items.extend(await self._fetch_pull_requests(client, repo, since, until))
-                if self.config.include.issues:
-                    items.extend(await self._fetch_issues(client, repo, since, until))
+        try:
+            async with httpx.AsyncClient(
+                base_url=self.config.api_base_url,
+                headers=headers,
+                timeout=30,
+                trust_env=self.config.trust_env,
+                follow_redirects=True,
+            ) as client:
+                for repo in self.config.repos:
+                    if self.config.include.commits:
+                        items.extend(await self._fetch_commits(client, repo, since, until))
+                    if self.config.include.pull_requests:
+                        items.extend(await self._fetch_pull_requests(client, repo, since, until))
+                    if self.config.include.issues:
+                        items.extend(await self._fetch_issues(client, repo, since, until))
+        except httpx.TimeoutException as exc:
+            raise RuntimeError(
+                f"GitHub API 请求超时：{self._request_url(exc)}。"
+                "请检查网络/代理，或在页面关闭 Git 采集后只采集飞书。"
+            ) from exc
+        except httpx.RequestError as exc:
+            raise RuntimeError(
+                f"GitHub API 网络请求失败：{exc.__class__.__name__} {self._request_url(exc)}。"
+                "请检查网络、代理、VPN、防火墙，或配置 Git Token 后重试。"
+            ) from exc
         return items
 
     async def _fetch_commits(
@@ -200,7 +211,32 @@ class GitSource:
                     f"GitHub API 限流：仓库 `{repo}` 未配置有效 Git Token 或请求过频。"
                     "请在页面填写 Git Token，或关闭 Git 数据源后只采集飞书。"
                 ) from exc
-            raise
+            raise RuntimeError(
+                f"GitHub API 请求失败：仓库 `{repo}` 返回 HTTP {response.status_code}，"
+                f"接口 {response.request.url}，响应：{self._response_message(response)}"
+            ) from exc
+
+    @staticmethod
+    def _request_url(exc: httpx.RequestError) -> str:
+        try:
+            return str(exc.request.url)
+        except RuntimeError:
+            return "未知 URL"
+
+    @staticmethod
+    def _response_message(response: httpx.Response) -> str:
+        try:
+            data = response.json()
+        except ValueError:
+            return response.text[:500] or response.reason_phrase
+        if isinstance(data, dict):
+            message = data.get("message")
+            documentation_url = data.get("documentation_url")
+            if message and documentation_url:
+                return f"{message}，文档：{documentation_url}"
+            if message:
+                return str(message)
+        return response.text[:500] or response.reason_phrase
 
     @staticmethod
     def _demo_times(week_start: datetime, week_end: datetime, count: int) -> list[datetime]:

@@ -62,7 +62,7 @@ class ReportService:
                 items.extend(exc.items)
                 errors.extend(f"{name} 数据源部分采集失败：{error}" for error in exc.errors)
             except Exception as exc:
-                errors.append(f"{name} 数据源采集失败：{exc}")
+                errors.append(f"{name} 数据源采集失败：{self._error_detail(exc)}")
 
         return sorted(items, key=self._sort_timestamp, reverse=True), errors
 
@@ -70,6 +70,11 @@ class ReportService:
     def _format_collection_errors(errors: list[str]) -> str:
         details = "\n".join(f"- {error}" for error in errors)
         return f"## 采集告警\n{details}"
+
+    @staticmethod
+    def _error_detail(exc: Exception) -> str:
+        detail = str(exc).strip()
+        return detail or exc.__class__.__name__
 
     @staticmethod
     def _sort_timestamp(item: WorkItem) -> float:
